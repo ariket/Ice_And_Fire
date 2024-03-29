@@ -7,6 +7,8 @@ using Newtonsoft.Json;
 using System.Linq;
 using System.ComponentModel.Design;
 using System.Xml.Linq;
+using System.Security.Cryptography;
+using System.Threading.Tasks.Dataflow;
 
 
 namespace IceAndFireAPIExample
@@ -14,13 +16,13 @@ namespace IceAndFireAPIExample
     
     class Program
     {
+        //"bookTitlesToUse"/"bookUrlToUse" are specified in the assignment
         public static string[] bookTitlesToUse = { "A Game of Thrones", "A Clash of Kings", "A Storm of Swords", "A Feast for Crows", "A Dance with Dragons" };
-        public static string[] bookUrlToUse = { "https://anapioficeandfire.com/api/books/1", "https://www.anapioficeandfire.com/api/books/2", "https://www.anapioficeandfire.com/api/books/3", "https://www.anapioficeandfire.com/api/books/5", "https://www.anapioficeandfire.com/api/books/8" };
-
+        public static string[] bookUrlToUse = { "https://www.anapioficeandfire.com/api/books/1", "https://www.anapioficeandfire.com/api/books/2", "https://www.anapioficeandfire.com/api/books/3", "https://www.anapioficeandfire.com/api/books/5", "https://www.anapioficeandfire.com/api/books/8" };
+        public static List<Book> bookToUse = new List<Book>();
 
         static async Task Main(string[] args)
         {
-            List<Book> bookToUse = new List<Book>();
            
             foreach (string bookTitle in bookTitlesToUse) 
             {
@@ -34,8 +36,8 @@ namespace IceAndFireAPIExample
                         responseBook.EnsureSuccessStatusCode(); // Kastar ett undantag om förfrågan misslyckas
                         string responseDataBook = await responseBook.Content.ReadAsStringAsync();
                         responseDataBook = responseDataBook[1..^1]; //tar bort första och sista tecknet: [ ]
-                        Book arrynHouse = JsonConvert.DeserializeObject<Book>(responseDataBook)!;
-                        bookToUse.Add(arrynHouse);
+                       // Book arrynHouse = JsonConvert.DeserializeObject<Book>(responseDataBook)!;
+                        bookToUse.Add(JsonConvert.DeserializeObject<Book>(responseDataBook)!);
                     }
                     catch (HttpRequestException e)
                     {
@@ -102,7 +104,7 @@ namespace IceAndFireAPIExample
                                 if (bookUrl == book.Url)
                                 {
                                     Console.Write(character);
-                                    Console.WriteLine(listAllTitlesAndAllBooks(character));
+                                    Console.WriteLine(listAllTitlesAndAllBooks(character, book));
                                 }
                         }
                         Console.WriteLine();
@@ -119,30 +121,75 @@ namespace IceAndFireAPIExample
 
         }
 
-        public static string listAllTitlesAndAllBooks(Character character)
+        public static string listAllTitlesAndAllBooks(Character character, Book book)
         {
 
             string ReturnString = "";
             int numOfTitles = 0;
-            foreach(string title in character.Titles!)
+            foreach (string title in character.Titles!)
             {
-                if(numOfTitles == 0)
-                    ReturnString +=$"{title,1}";
+                if (numOfTitles > 0)
+                    ReturnString += ", ";
+                ReturnString += $"{title,1}";
+                
+               numOfTitles++;
+            }
+            /*
+            int numOfTitles = 0;
+            foreach (string title in character.Titles!)
+            {
+                if (numOfTitles == 0)
+                {
+                    ReturnString += $"{title,1}";
+                    listAllBooks(character, ref ReturnString);
+                }
                 else
+                {
                     ReturnString += $"\n\t\t\t\t\t      {title}";
+                    listAllBooks(character, ref ReturnString);
+                }
                 numOfTitles++;
             }
-         
-            
+            */
+
+            listAllBooks(character, ref ReturnString, book);
+
             return ReturnString;
 
         }
 
-        public static string listAllBooks(Character character)
+        public static string listAllBooks(Character character, ref string ReturnString, Book book)
         {
 
-            string ReturnString = "";
-        
+            ReturnString +="\n";
+            var bookQuery =
+                
+                from books in character.Books
+                join bookk in bookToUse
+                    on books equals bookk.Url
+                where books != book.Url
+                
+                select bookk.Name  ;
+
+            int numOfTitles = 0;
+            foreach (string books in bookQuery) 
+            {
+                if (numOfTitles > 0)
+                    ReturnString += ", ";
+
+                ReturnString += $"{books,1}";
+                numOfTitles++;
+            }
+            
+
+        //    foreach (string book in character.Books!)
+        //    {  
+
+        //            ReturnString += $"{book,1}";  
+        //    }
+
+            /*
+
             int numOfStrings = 0;
             foreach (string book in character.Books!)
             {
@@ -152,7 +199,7 @@ namespace IceAndFireAPIExample
                     ReturnString += $"\n\t\t\t\t\t      {book}";
                 numOfStrings++;
             }
-
+            */
             return ReturnString;
 
         }
@@ -184,7 +231,20 @@ namespace IceAndFireAPIExample
                     //swornMembers.Add(swornMemberName);
                     //}
                 }
+
             }
+
+            //remove all books that aren't in the "bookUrlToUse" array - "bookUrlToUse" are specified in the assignment
+            foreach (Character character in swornMemberCharacters!)
+            {
+                foreach (string book in character.Books!.ToList())
+                {
+                    if (!bookUrlToUse.Contains(book))
+                        character.Books!.Remove(book);
+                }
+
+            }
+
             //swornMemberCharacters.Sort();
             return swornMemberCharacters;
         }
@@ -244,9 +304,9 @@ namespace IceAndFireAPIExample
         [JsonProperty("povBooks")]
         public List<string>? PovBooks { get; set; }
 
-        public int CompareTo(Character other)
+        public int CompareTo(Character? other)
         {
-            return Name.CompareTo(other.Name);
+            return Name.CompareTo(other!.Name);
         }
 
         public override string ToString()
