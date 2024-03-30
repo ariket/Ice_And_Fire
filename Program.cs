@@ -76,7 +76,6 @@ namespace IceAndFireAPIExample
         {
             return $"{Name,-16} {HouseName,-28} ";
         }
-
     }
 
     class Program
@@ -88,72 +87,47 @@ namespace IceAndFireAPIExample
         public static List<Character> SwornMembers = new List<Character>();
 
 
-        static async Task Main(string[] args)
+        static Task Main(string[] args)
         {
             _ = getBooksFromServer();
-
             _ = getHousesFromServer();
 
+            Console.ReadLine();
+            return Task.CompletedTask;
+        }
 
-            using (HttpClient client = new HttpClient()) // Create a HttpClient-instance to be able to call the API
-            {
-                try
-                {
-
-                    // GET to fetch data about "House Arryn of the Eyrie"
-                    HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/7");
-                    //HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/?name=House%20Arryn%20of%20the%20Eyrie");
-                    responseArryn.EnsureSuccessStatusCode(); // Throw exception if no response from server
-                    string responseDataArryn = await responseArryn.Content.ReadAsStringAsync();
-                    //responseDataArryn = responseDataArryn[1..^1]; //tar bort förta och sista tecknet: [ ]
-                    House arrynHouse = JsonConvert.DeserializeObject<House>(responseDataArryn)!;
-                   
-                    // GET to fetch data about "House Baelish of the Fingers"
-                    HttpResponseMessage responseBaelish = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/11");
-                    responseBaelish.EnsureSuccessStatusCode(); // Throw exception if no response from server
-                    string responseDataBaelish = await responseBaelish.Content.ReadAsStringAsync();
-                    House baelishHouse = JsonConvert.DeserializeObject<House>(responseDataBaelish)!;
-
-                    // Get swornMembers for the two houses specified in the assignment
-                    SwornMembers = await GetSwornMembers(client, arrynHouse.SwornMembers!, "House Arryn of the Eyrie");
-                    List<Character> baelishSwornMembers = await GetSwornMembers(client, baelishHouse.SwornMembers!, "House Baelish of the Fingers");
-                    SwornMembers.AddRange(baelishSwornMembers);
-                }
-                catch (HttpRequestException e)
-                {
-                    Console.WriteLine($"Error: {e.Message}");
-                }
-            }
-
-
+        public static void printLists()
+        {
+            Console.Clear();
             Console.WriteLine("--------------------------------------------------------------------------------------------------------");
-                    Console.WriteLine("|                House Arryn of the Eyrie and House Baelish of the Fingers Sworn Members               |");
-                    Console.WriteLine("--------------------------------------------------------------------------------------------------------\n");
+            Console.WriteLine("|                House Arryn of the Eyrie and House Baelish of the Fingers Sworn Members               |");
+            Console.WriteLine("--------------------------------------------------------------------------------------------------------\n");
 
-                    foreach (Book book in bookToUse)
-                    {
-                        Console.WriteLine("--------------------------------------------------------------------------------------------------------");
-                        Console.WriteLine($"|                Book title: {book.Name}                                                         |");
-                        Console.WriteLine("--------------------------------------------------------------------------------------------------------");
-                        Console.WriteLine("Charactername:   HouseName:                    Titles:");
-                        Console.WriteLine("Appears also in these books:");
-                        Console.WriteLine("--------------------------------------------------------------------------------------------------------\n");
-                        foreach (Character character in SwornMembers)
+            foreach (Book book in bookToUse)
+            {
+                Console.WriteLine("--------------------------------------------------------------------------------------------------------");
+                Console.WriteLine($"|                Book title: {book.Name}                                                         |");
+                Console.WriteLine("--------------------------------------------------------------------------------------------------------");
+                Console.WriteLine("Charactername:   HouseName:                    Titles:");
+                Console.WriteLine("Appears also in these books:");
+                Console.WriteLine("--------------------------------------------------------------------------------------------------------\n");
+                foreach (Character character in SwornMembers)
+                {
+                    foreach (string bookUrl in character.Books!)
+                        if (bookUrl == book.Url)
                         {
-                            foreach (string bookUrl in character.Books!)
-                                if (bookUrl == book.Url)
-                                {
-                                    Console.Write(character);
-                                    Console.WriteLine(listAllTitles(character, book));
-                                }
+                            Console.Write(character);
+                            Console.WriteLine(listAllTitles(character, book));
                         }
-                        Console.WriteLine();
-                    }
-          
+                }
+                Console.WriteLine();
+            }
         }
 
         public static async Task getBooksFromServer()
         {
+            await Console.Out.WriteLineAsync("Hold on, fetcing data from https://www.anapioficeandfire.com");
+
             foreach (string bookTitle in bookTitlesToUse) // Create a HttpClient-instance to be able to call the API
             {
                 using (HttpClient client = new HttpClient())
@@ -179,11 +153,40 @@ namespace IceAndFireAPIExample
         public static async Task getHousesFromServer()
         {
 
+            using (HttpClient client = new HttpClient()) // Create a HttpClient-instance to be able to call the API
+            {
+                try
+                {
 
+                    // GET to fetch data about "House Arryn of the Eyrie"
+                    HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/7");
+                    //HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/?name=House%20Arryn%20of%20the%20Eyrie");
+                    responseArryn.EnsureSuccessStatusCode(); // Throw exception if no response from server
+                    string responseDataArryn = await responseArryn.Content.ReadAsStringAsync();
+                    //responseDataArryn = responseDataArryn[1..^1]; //tar bort förta och sista tecknet: [ ]
+                    House arrynHouse = JsonConvert.DeserializeObject<House>(responseDataArryn)!;
+
+                    // GET to fetch data about "House Baelish of the Fingers"
+                    HttpResponseMessage responseBaelish = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/11");
+                    responseBaelish.EnsureSuccessStatusCode(); // Throw exception if no response from server
+                    string responseDataBaelish = await responseBaelish.Content.ReadAsStringAsync();
+                    House baelishHouse = JsonConvert.DeserializeObject<House>(responseDataBaelish)!;
+
+                    // Get swornMembers for the two houses specified in the assignment
+                    SwornMembers = await GetSwornMembers(client, arrynHouse.SwornMembers!, "House Arryn of the Eyrie");
+                    List<Character> baelishSwornMembers = await GetSwornMembers(client, baelishHouse.SwornMembers!, "House Baelish of the Fingers");
+                    SwornMembers.AddRange(baelishSwornMembers);
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.WriteLine($"Error: {e.Message}");
+                }
+            }
+
+            printLists(); //Print when all data are fetched from https://www.anapioficeandfire.com
         }
 
-
-            public static string listAllTitles(Character character, Book book) //Lists all titles of the character
+        public static string listAllTitles(Character character, Book book) //Lists all titles of the character
         {
             string ReturnString = "";
             int numOfTitles = 0;
@@ -274,18 +277,6 @@ namespace IceAndFireAPIExample
                     swornMemberCharacters[elementNum-1].SetHouseName(CurrentHouseName);
                 }
             }
-
-            //remove all books that aren't in the "bookUrlToUse" array - "bookUrlToUse" are specified in the assignment
-         //   foreach (Character character in swornMemberCharacters!)
-         //   {
-         //       foreach (string book in character.Books!.ToList())
-         //       {
-         //           if (!bookUrlToUse.Contains(book))
-         //               character.Books!.Remove(book);
-         //       }
-
-         //   }
-
             swornMemberCharacters.Sort();
             return swornMemberCharacters;
         }
