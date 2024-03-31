@@ -11,9 +11,9 @@ using System.Security.Cryptography;
 using System.Threading.Tasks.Dataflow;
 
 
-namespace IceAndFireAPIExample
+namespace IceAndFireAPI
 {
-    // a class for books in "Ice and Fire"
+    // a class of books in "Ice and Fire"
     public class Book
     {
         [JsonProperty("name")]
@@ -29,7 +29,7 @@ namespace IceAndFireAPIExample
         public List<string>? PovCharacters { get; set; }
     }
 
-    // a class for houses in "Ice and Fire"
+    // a class for noblehouses in "Ice and Fire"
     public class House
     {
         [JsonProperty("name")]
@@ -85,19 +85,21 @@ namespace IceAndFireAPIExample
         //public static string[] bookUrlToUse = { "https://www.anapioficeandfire.com/api/books/1", "https://www.anapioficeandfire.com/api/books/2", "https://www.anapioficeandfire.com/api/books/3", "https://www.anapioficeandfire.com/api/books/5", "https://www.anapioficeandfire.com/api/books/8" };
         public static List<Book> bookToUse = new List<Book>();
         public static List<Character> SwornMembers = new List<Character>();
+        public static bool NotReady = true;
 
 
         static Task Main(string[] args)
         {
             _ = getBooksFromServer();
-            _ = getHousesFromServer();
-
+            getHousesFromServer().Wait();
+            printLists();
             Console.ReadLine();
             return Task.CompletedTask;
         }
 
         public static void printLists()
         {
+
             Console.Clear();
             Console.WriteLine("--------------------------------------------------------------------------------------------------------");
             Console.WriteLine("|                House Arryn of the Eyrie and House Baelish of the Fingers Sworn Members               |");
@@ -126,7 +128,8 @@ namespace IceAndFireAPIExample
 
         public static async Task getBooksFromServer()
         {
-            await Console.Out.WriteLineAsync("Hold on, fetcing data from https://www.anapioficeandfire.com");
+            
+
 
             foreach (string bookTitle in bookTitlesToUse) // Create a HttpClient-instance to be able to call the API
             {
@@ -134,10 +137,9 @@ namespace IceAndFireAPIExample
                 {
                     try
                     {
-
                         // GET to fetch data about books specified in the assignment
                         HttpResponseMessage responseBook = await client.GetAsync($"https://www.anapioficeandfire.com/api/books/?name={bookTitle}");
-                        responseBook.EnsureSuccessStatusCode(); // Throw exception if no response from server
+                        //responseBook.EnsureSuccessStatusCode(); // Throw exception if no response from server
                         string responseDataBook = await responseBook.Content.ReadAsStringAsync();
                         responseDataBook = responseDataBook[1..^1]; //Removes first and last char from GET answer: [ ]
                         bookToUse.Add(JsonConvert.DeserializeObject<Book>(responseDataBook)!);
@@ -150,8 +152,21 @@ namespace IceAndFireAPIExample
             }
         }
 
+        public static async Task PrintDots()
+        {
+            await Console.Out.WriteLineAsync("Hold on, fetcing data from https://www.anapioficeandfire.com");
+            while (NotReady)
+            {
+                //Console.Clear();
+                
+                await Console.Out.WriteAsync("*");
+                await Task.Delay(200);
+            }  
+        }
+
         public static async Task getHousesFromServer()
         {
+            _ = PrintDots();
 
             using (HttpClient client = new HttpClient()) // Create a HttpClient-instance to be able to call the API
             {
@@ -161,14 +176,14 @@ namespace IceAndFireAPIExample
                     // GET to fetch data about "House Arryn of the Eyrie"
                     HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/7");
                     //HttpResponseMessage responseArryn = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/?name=House%20Arryn%20of%20the%20Eyrie");
-                    responseArryn.EnsureSuccessStatusCode(); // Throw exception if no response from server
+                    //responseArryn.EnsureSuccessStatusCode(); // Throw exception if no response from server
                     string responseDataArryn = await responseArryn.Content.ReadAsStringAsync();
-                    //responseDataArryn = responseDataArryn[1..^1]; //tar bort förta och sista tecknet: [ ]
+                    //responseDataArryn = responseDataArryn[1..^1]; //tar bort första och sista tecknet: [ ]
                     House arrynHouse = JsonConvert.DeserializeObject<House>(responseDataArryn)!;
 
                     // GET to fetch data about "House Baelish of the Fingers"
                     HttpResponseMessage responseBaelish = await client.GetAsync("https://www.anapioficeandfire.com/api/houses/11");
-                    responseBaelish.EnsureSuccessStatusCode(); // Throw exception if no response from server
+                    //responseBaelish.EnsureSuccessStatusCode(); // Throw exception if no response from server
                     string responseDataBaelish = await responseBaelish.Content.ReadAsStringAsync();
                     House baelishHouse = JsonConvert.DeserializeObject<House>(responseDataBaelish)!;
 
@@ -181,9 +196,12 @@ namespace IceAndFireAPIExample
                 {
                     Console.WriteLine($"Error: {e.Message}");
                 }
-            }
 
-            printLists(); //Print when all data are fetched from https://www.anapioficeandfire.com
+                NotReady = false;
+
+            }
+            // printLists(); //Call Print function after all data are fetched from https://www.anapioficeandfire.com
+           
         }
 
         public static string listAllTitles(Character character, Book book) //Lists all titles of the character
